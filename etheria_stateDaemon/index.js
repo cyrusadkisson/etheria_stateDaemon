@@ -62,8 +62,8 @@ function getBlock(atBlock, hydrated) {
 }
 
 var Web3 = require('web3');
-var web3 = new Web3(process.env.INFURA_URL_1);
-var lookahead = process.env.lookahead*1;
+var web3 = new Web3(process.env.WEB3_PROVIDER_URL_1);
+var lookahead = process.env.LOOKAHEAD*1;
 
 exports.handler = async (event) => {
 	console.log("event=" + JSON.stringify(event));
@@ -207,18 +207,22 @@ exports.handler = async (event) => {
 
 							console.log("done getting set of hydrated blocks since last. resultArray.length=" + resultArray.length);
 							console.log("going to look for ourAddresses=" + JSON.stringify(ourAddresses));
+							var keepLoopingResultArray = true;
+							var keepLoopingTransactions = true;
+							var keepLoopingOurAddresses = true;
 							var blocksSearchedString = "Searched blocks ";
-							while (i < resultArray.length) {
+							while (i < resultArray.length && keepLoopingResultArray === true) {
 								blocksSearchedString = blocksSearchedString + resultArray[i].number + " ";
 								t = 0;
-								while (t < resultArray[i].transactions.length) {
+								keepLoopingTransactions = true;
+								while (t < resultArray[i].transactions.length && keepLoopingTransactions === true) {
 									//console.log("\tto=" + resultArray[i].transactions[t].to);
 									if (ourAddresses.includes(resultArray[i].transactions[t].to)) {
 										console.log("* Found transaction in this block to " + resultArray[i].transactions[t].to);
 										numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
 										console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
-										i = resultArray.length; // break outer (i) loop
-										break; 					// break this (t) loop
+										keepLoopingResultArray = false; 
+										keepLoopingTransactions = false;
 									}
 									// atomic match hash = 0xab834bab
 									else if (openseaAddresses.includes(resultArray[i].transactions[t].to) && resultArray[i].transactions[t].input.startsWith("0xab834bab")) {
@@ -230,16 +234,16 @@ exports.handler = async (event) => {
 											targetContract = "0x" + resultArray[i].transactions[t].input.substring(3626, 3666);
 											//console.log("    target contract addr:" + targetContract);
 											var oA = 0;
-											var found = false;
-											while (oA < ourAddresses.length && found === false) {
+											keepLoopingOurAddresses = true;
+											while (oA < ourAddresses.length && keepLoopingOurAddresses === true) {
 												if (ourAddresses[oA].toLowerCase() === targetContract) {
 													console.log("FOUND OPENSEA atomic_match TX FOR OUR CONTRACT!");
 													console.log("    tx:" + JSON.stringify(resultArray[i].transactions[t]));
 													numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
 													console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
-													found = true; // break this loop
-													t = resultArray[i].transactions.length; // break inner (t) loop
-													i = resultArray.length; // break outer (i) loop
+													keepLoopingOurAddresses = false; // break this loop
+													keepLoopingResultArray = false; 
+													keepLoopingTransactions = false;
 												}
 												oA++;
 											}
@@ -261,8 +265,8 @@ exports.handler = async (event) => {
 										console.log(" tx=" + JSON.stringify(resultArray[i].transactions[t]));
 										numberOfFirstRelevantBlock = resultArray[i].number * 1;
 										console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
-										i = resultArray.length; // break outer (i) loop
-										break; 					// break this (t) loop
+										keepLoopingResultArray = false; 
+										keepLoopingTransactions = false;
 									}
 									t++;
 								}

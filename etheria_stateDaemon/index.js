@@ -63,7 +63,7 @@ function getBlock(atBlock, hydrated) {
 
 var Web3 = require('web3');
 var web3 = new Web3(process.env.WEB3_PROVIDER_URL_1);
-var lookahead = process.env.LOOKAHEAD*1;
+var lookahead = process.env.LOOKAHEAD * 1;
 
 exports.handler = async (event) => {
 	console.log("event=" + JSON.stringify(event));
@@ -127,14 +127,16 @@ exports.handler = async (event) => {
 			Limit: 1
 		};
 
-		dynamoDB.query(params, function(err, data) {
+		dynamoDB.query(params, function(err, oldData) {
 			if (err) {
 				console.log("Error", err);
 				reject(err);
 			}
 			else {
-				if (data.Items.length === 0) {
+				if (oldData.Items.length === 0) {
 					console.log("no existing state. compressing blank map and submitting to db");
+					var touchDate = new Date();
+					var touchISO = touchDate.toISOString();
 					var compressed = pako.deflate(JSON.stringify(blankMaps[event.params.querystring.version].tiles), { to: 'string' });
 					var params = {
 						TableName: 'EtheriaEvents2',
@@ -144,7 +146,9 @@ exports.handler = async (event) => {
 							'timestamp': blankMaps[event.params.querystring.version].timestamp,
 							'state': compressed,
 							'dateISO': (new Date(blankMaps[event.params.querystring.version].timestamp * 1000)).toISOString(),
-							'nextBlock': blankMaps[event.params.querystring.version].blockNumber + 1
+							'nextBlock': blankMaps[event.params.querystring.version].blockNumber + 1,
+							'touchISO': touchISO,
+							'touchTimestamp': touchTimestamp
 						}
 					};
 
@@ -160,20 +164,36 @@ exports.handler = async (event) => {
 					});
 				}
 				else {
-					console.log("existing state found with data.Items[0].blockNumber=" + data.Items[0].blockNumber);
-					var decompressedString = pako.inflate(new Uint8Array(data.Items[0].state), { to: 'string' });
+					console.log("existing state found with data.Items[0].blockNumber=" + oldData.Items[0].blockNumber);
+					var compressedOldState = new Uint8Array(oldData.Items[0].state); 
+					var decompressedString = pako.inflate(compressedOldState, { to: 'string' });
+					// for later comparison
 					var tiles = JSON.parse(decompressedString);
 					web3.eth.getBlock("latest", false).then(function(latestBlock) { // we use web3.eth.getBlock here to avoid the spreadTimer. We want it immediately. Don't need full tx info either.
 						console.log("latestBlock.number=" + latestBlock.number);
 
-						var latestBlockNumber = latestBlock.number * 1;
-						if (latestBlockNumber - (data.Items[0].nextBlock * 1) > lookahead) {
-							latestBlockNumber = (data.Items[0].nextBlock * 1) + lookahead; // to avoid overload, get maximum *lookahead* blocks at a time. It'll eventually catch up
-							console.log("limiting to " + lookahead + " blocks latestBlockNumber adjusted from actual (" + (latestBlock.number * 1) + ") to " + latestBlockNumber);
+						var searchToBlock = latestBlock.number;
+						var b;
+						if (oldData.Items[0].nextBlock > latestBlock.number) // error case (shouldn't happen). Somehow the system has recorded that it has looked past the most recent ETH block.
+						{												 // In this case, search from data.Items[0].blockNumber instead (i.e. start the nextBlock count over again)
+							console.log("Error case: nextBlock is beyond ETH's most recent block. Handling by resetting search to block of last DB entry + 1.");
+							if (searchToBlock - oldData.Items[0].blockNumber > lookahead) {
+								searchToBlock = oldData.Items[0].blockNumber + lookahead; // to avoid overload, get maximum *lookahead* blocks at a time. It'll eventually catch up
+								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].blockNumber);
+								console.log("Limiting to " + lookahead + " blocks from there, ending with " + searchToBlock);
+							}
+							b = oldData.Items[0].blockNumber + 1; // skip the last block we checked
 						}
-						var b = (data.Items[0].nextBlock * 1); 
+						else { // normal case
+							if (searchToBlock - oldData.Items[0].nextBlock > lookahead) {
+								searchToBlock = oldData.Items[0].nextBlock + lookahead; // to avoid overload, get maximum *lookahead* blocks at a time. It'll eventually catch up
+								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].nextBlock);
+								console.log("Limiting to " + lookahead + " blocks from there, ending with " + searchToBlock);
+							}
+							b = oldData.Items[0].nextBlock;
+						}
 						var getBlockPromises = [];
-						while (b <= latestBlockNumber) {
+						while (b <= searchToBlock) {
 							getBlockPromises.push(getBlock(b, true));
 							b++;
 						}
@@ -221,7 +241,7 @@ exports.handler = async (event) => {
 										console.log("* Found transaction in this block to " + resultArray[i].transactions[t].to);
 										numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
 										console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
-										keepLoopingResultArray = false; 
+										keepLoopingResultArray = false;
 										keepLoopingTransactions = false;
 									}
 									// atomic match hash = 0xab834bab
@@ -242,7 +262,7 @@ exports.handler = async (event) => {
 													numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
 													console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
 													keepLoopingOurAddresses = false; // break this loop
-													keepLoopingResultArray = false; 
+													keepLoopingResultArray = false;
 													keepLoopingTransactions = false;
 												}
 												oA++;
@@ -265,7 +285,7 @@ exports.handler = async (event) => {
 										console.log(" tx=" + JSON.stringify(resultArray[i].transactions[t]));
 										numberOfFirstRelevantBlock = resultArray[i].number * 1;
 										console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
-										keepLoopingResultArray = false; 
+										keepLoopingResultArray = false;
 										keepLoopingTransactions = false;
 									}
 									t++;
@@ -276,25 +296,24 @@ exports.handler = async (event) => {
 							console.log("blocksSearched=" + blocksSearchedString);
 							console.log("numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock);
 
+							var touchDate = new Date();
+							var touchISO = touchDate.toISOString();
+							var touchTimestamp = Math.floor(touchDate.getTime() / 1000);
 							if (numberOfFirstRelevantBlock === 0) // found nothing interesting. Update row's nextBlock value
 							{
-								console.log("no changes detected in " + lookahead + " blocks from nextBlock. Now updating nextBlock to nextBlock+" + lookahead + "=" + ((data.Items[0].nextBlock + lookahead)*1) + ".");
+								console.log("no changes detected. Setting nextBlock to searchToBlock + 1;");
 								var params = {
 									TableName: "EtheriaEvents2",
 									Key: {
-										"version": data.Items[0].version,
-										"blockNumber": data.Items[0].blockNumber
-									},
-									// UpdateExpression: null,
-									// ExpressionAttributeValues: {
-									//     ":i": event.value
-									// },
-									//ReturnValues: event.returnValues
+										"version": oldData.Items[0].version,
+										"blockNumber": oldData.Items[0].blockNumber
+									}
 								};
-
-								params.UpdateExpression = "set nextBlock = :i";
+								params.UpdateExpression = "set nextBlock = :i, touchISO = :t, touchTimestamp = :s";
 								params.ExpressionAttributeValues = {
-									":i": data.Items[0].nextBlock + lookahead
+									":i": (searchToBlock + 1),
+									":t": touchISO,
+									":s": touchTimestamp
 								};
 
 								dynamoDB.update(params, function(err, data) {
@@ -336,28 +355,96 @@ exports.handler = async (event) => {
 									if (newMapEnvelope.tiles) { // a check to make sure what we're getting back has a valid map
 										console.log("newMapEnvelope had tiles");
 										var compressed = pako.deflate(JSON.stringify(newMapEnvelope.tiles), { to: 'string' });
-										var params = {
-											TableName: 'EtheriaEvents2',
-											Item: {
-												'version': event.params.querystring.version,
-												'blockNumber': numberOfFirstRelevantBlock,
-												'timestamp': newMapEnvelope.timestamp,
-												'state': compressed,
-												'dateISO': (new Date(newMapEnvelope.timestamp * 1000)).toISOString(),
-												'nextBlock': numberOfFirstRelevantBlock + 1
+//										console.log("JSON.stringify(compressed)=" + JSON.stringify(compressed));
+//										console.log("JSON.stringify(compressedOldState)=" + JSON.stringify(compressedOldState));
+//										console.log("typeof compressed=" + typeof compressed);
+//										console.log("typeof compressedOldState=" + typeof compressedOldState);
+//										console.log("compressed.length=" + compressed.length);
+//										console.log("compressedOldState.length=" + compressedOldState.length);
+										function areEqual(a,b)
+										{
+											if(a.length !== b.length)
+											{
+												console.log("a and b lengths differ. returning false");
+												return false;
 											}
-										};
+											if(typeof a !== typeof b)
+											{
+												console.log("a and b types differ. returning false");
+												return false;
+											}
+											var akeys = Object.keys(a);
+											var bkeys = Object.keys(b);
+											if(akeys.length !== bkeys.length)
+											{
+												console.log("akeys and bkeys lengths differ. returning false");
+												return false;
+											}
+											var k = 0;
+											while(k < akeys.length)
+											{
+												if(a[akeys[k]] !== b[bkeys[k]])
+												{
+													console.log("found differing element at k=" + k + ". a[akeys[k]]=" + a[akeys[k]] + " and b[bkeys[k]]=" + b[bkeys[k]]);
+													return false;	
+												}	
+												k++;	
+											}
+											return true;
+										}
+										
+										if (areEqual(compressed,compressedOldState)) // nothing changed. state is the same. Update existing row and keep searching
+										{
+											console.log("compressed and compressedOldState were equal. updating existing row");
+											var params = {
+												TableName: "EtheriaEvents2",
+												Key: {
+													"version": oldData.Items[0].version,
+													"blockNumber": oldData.Items[0].blockNumber
+												}
+											};
+											params.UpdateExpression = "set nextBlock = :i, touchISO = :t, touchTimestamp = :s";
+											params.ExpressionAttributeValues = {
+												":i": (numberOfFirstRelevantBlock + 1),
+												":t": touchISO,
+												":s": touchTimestamp
+											};
 
-										dynamoDB.put(params, function(err, data) {
-											if (err) {
-												console.log(getHrDate() + " " + event.params.querystring.version + " " + params.TableName + " put error. ", err);
-												reject();
-											}
-											else {
-												console.log(getHrDate() + " " + event.params.querystring.version + " " + params.TableName + " put success. data=" + JSON.stringify(data));
-												resolve(); // found nothing, resolve with nothing
-											}
-										});
+											dynamoDB.update(params, function(err, data) {
+												if (err)
+													reject(new Error("[InternalServerError]: database error=" + err.message));
+												else {
+													resolve();
+												}
+											});
+										}
+										else { // state changed. create entirely new row
+											console.log("compressed and compressedOldState were NOT equal. creating new row");
+											var params = {
+												TableName: 'EtheriaEvents2',
+												Item: {
+													'version': event.params.querystring.version,
+													'blockNumber': numberOfFirstRelevantBlock,
+													'timestamp': newMapEnvelope.timestamp,
+													'state': compressed,
+													'dateISO': (new Date(newMapEnvelope.timestamp * 1000)).toISOString(),
+													'nextBlock': numberOfFirstRelevantBlock + 1,
+													'touchISO': touchISO,
+													'touchTimestamp': touchTimestamp
+												}
+											};
+
+											dynamoDB.put(params, function(err, data) {
+												if (err) {
+													console.log(getHrDate() + " " + event.params.querystring.version + " " + params.TableName + " put error. ", err);
+													reject();
+												}
+												else {
+													console.log(getHrDate() + " " + event.params.querystring.version + " " + params.TableName + " put success. data=" + JSON.stringify(data));
+													resolve(); // found nothing, resolve with nothing
+												}
+											});
+										}
 									}
 									else {
 										// something was wrong with the new map

@@ -65,6 +65,158 @@ var Web3 = require('web3');
 var web3 = new Web3(process.env.WEB3_PROVIDER_URL_1);
 var lookahead = process.env.LOOKAHEAD * 1;
 
+function arraysEqual(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (a.length !== b.length) return false;
+
+  // If you don't care about the order of the elements inside
+  // the array, you should sort both arrays here.
+  // Please note that calling sort on an array will modify that array.
+  // you might want to clone your array first.
+
+  for (var i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function areStatesEqual(a, b) // uncompressed states
+{
+//	console.log(JSON.stringify(a));
+//	console.log(JSON.stringify(b));
+//	console.log("typeof a=" + typeof a);
+//	console.log("typeof b=" + typeof b);
+//	console.log("Array.isArray(a)=" + Array.isArray(a));
+//	console.log("Array.isArray(b)=" + Array.isArray(b));
+
+//	if (typeof a !== typeof b) {
+//		console.log("a and b types differ. returning false");
+//		console.log("typeof a=" + typeof a);
+//		console.log("typeof b=" + typeof b);
+//		return false;
+//	}
+//	console.log("a & b types are equal");
+//
+//	if (Array.isArray(a) ) {
+//			console.log("a & b should be instanceof Array and are not. returning false");
+//			return false;
+//	}
+
+	if (a.length !== b.length) {
+		console.log("a and b lengths differ. " + a.length + " vs " + b.length + " returning false");
+		console.log("a=" + a);
+		console.log("b=" + b);
+		return false;
+	}
+	console.log("a & b lengths are equal at " + a.length);
+
+	var l = 0;
+	while (l < a.length) {
+		if (typeof a[l] !== typeof b[l] ) {
+			console.log("a[" + l + "] and b[" + l + "] types differ. returning false");
+			console.log("typeof a[" + l + "]=" + typeof a[l]);
+			console.log("typeof b[" + l + "]=" + typeof b[l]);
+			return false;
+		}
+		
+		if (typeof a[l] !== "object" ) {
+			console.log("should be type 'object' and isn't. returning false");
+			return false;
+		}
+
+		if (Object.keys(a[l]).length !== Object.keys(b[l]).length) {
+			console.log("Object.keys(a[l]) and Object.keys(b[l]) lengths differ. " + Object.keys(a[l]).length + " vs " + Object.keys(b[l]).length + " returning false");
+			console.log("a=" + JSON.stringify(a));
+			console.log("b=" + JSON.stringify(b));
+			return false;
+		}
+		
+		if(a[l].index !== b[l].index) {
+			console.log("index changed for tile " + l + ". returning false");
+			console.log("a[l].index=" + a[l].index);
+			console.log("b[l].index=" + b[l].index);
+			return false;
+		}
+		
+		if(a[l].elevation !== b[l].elevation) {
+			console.log("elevation changed for tile " + l + ". returning false");
+			console.log("a[l].elevation=" + a[l].elevation);
+			console.log("b[l].elevation=" + b[l].elevation);
+			return false;
+		}
+		
+		if(a[l].owner !== b[l].owner) {
+			console.log("owner changed for tile " + l + ". returning false");
+			console.log("a[l].owner=" + a[l].owner);
+			console.log("b[l].owner=" + b[l].owner);
+			return false;
+		}
+		
+		if(a[l].nameRaw !== b[l].nameRaw) {
+			console.log("nameRaw changed for tile " + l + ". returning false");
+			console.log("a[l].nameRaw=" + a[l].nameRaw);
+			console.log("b[l].nameRaw=" + b[l].nameRaw);
+			return false;
+		}
+		
+		if(a[l].name !== b[l].name) {
+			console.log("name changed for tile " + l + ". returning false");
+			console.log("a[l].name=" + a[l].name);
+			console.log("b[l].name=" + b[l].name);
+			return false;
+		}
+		
+		if(a[l].status !== b[l].status) {
+			console.log("status changed for tile " + l + ". returning false");
+			console.log("a[l].status=" + a[l].status);
+			console.log("b[l].status=" + b[l].status);
+			return false;
+		}
+		
+		if(a[l].blocks.length !== b[l].blocks.length) {
+			console.log("blocks.length changed for tile " + l + ". returning false");
+			console.log("a[l].blocks=" + JSON.stringify(a[l].blocks) + " a[l].blocks.length=" + a[l].blocks.length);
+			console.log("b[l].blocks=" + JSON.stringify(b[l].blocks) + " b[l].blocks.length=" + b[l].blocks.length);
+			return false;
+		}
+		
+		if(a[l].blocks.length > 0)
+		{
+			var j = 0;
+			while(j < a[l].blocks.length)
+			{
+				if(!arraysEqual(a[l].blocks[j], b[l].blocks[j]))
+				{
+					console.log("blocks changed for tile " + l + ", block index=" + j + ". returning false");
+					console.log("a[l].blocks[j]=" + JSON.stringify(a[l].blocks[j]));
+					console.log("b[l].blocks[j]=" + JSON.stringify(b[l].blocks[j]));
+				}
+				j++;	
+			}
+			console.log("a&b[" + l + "].blocks length were > 0 but all were the same. continuing.");
+		}
+		
+		if(a[l].ownerOf !== b[l].ownerOf) {
+			console.log("ownerOf changed for tile " + l + ". returning false");
+			console.log("a[l].ownerOf=" + a[l].ownerOf);
+			console.log("b[l].ownerOf=" + b[l].ownerOf);
+			return false;
+		}
+		
+		if(a[l].ask !== b[l].ask) {
+			console.log("ask changed for tile " + l + ". returning false");
+			console.log("a[l].ask=" + a[l].ask);
+			console.log("b[l].ask=" + b[l].ask);
+			return false;
+		}
+		
+		l++;
+	}
+
+	return true;
+}
+
 exports.handler = async (event) => {
 	console.log("event=" + JSON.stringify(event));
 
@@ -165,7 +317,7 @@ exports.handler = async (event) => {
 				}
 				else {
 					console.log("existing state found with data.Items[0].blockNumber=" + oldData.Items[0].blockNumber);
-					var compressedOldState = new Uint8Array(oldData.Items[0].state); 
+					var compressedOldState = new Uint8Array(oldData.Items[0].state);
 					var decompressedString = pako.inflate(compressedOldState, { to: 'string' });
 					// for later comparison
 					var tiles = JSON.parse(decompressedString);
@@ -355,47 +507,35 @@ exports.handler = async (event) => {
 									if (newMapEnvelope.tiles) { // a check to make sure what we're getting back has a valid map
 										console.log("newMapEnvelope had tiles");
 										var compressed = pako.deflate(JSON.stringify(newMapEnvelope.tiles), { to: 'string' });
-//										console.log("JSON.stringify(compressed)=" + JSON.stringify(compressed));
-//										console.log("JSON.stringify(compressedOldState)=" + JSON.stringify(compressedOldState));
-//										console.log("typeof compressed=" + typeof compressed);
-//										console.log("typeof compressedOldState=" + typeof compressedOldState);
-//										console.log("compressed.length=" + compressed.length);
-//										console.log("compressedOldState.length=" + compressedOldState.length);
-										function areEqual(a,b)
+										//										console.log("JSON.stringify(compressed)=" + JSON.stringify(compressed));
+										//										console.log("JSON.stringify(compressedOldState)=" + JSON.stringify(compressedOldState));
+										//										console.log("typeof compressed=" + typeof compressed);
+										//										console.log("typeof compressedOldState=" + typeof compressedOldState);
+										//										console.log("compressed.length=" + compressed.length);
+										//										console.log("compressedOldState.length=" + compressedOldState.length);
+//										function areEqual(a, b) {
+//											var akeys = Object.keys(a);
+//											var bkeys = Object.keys(b);
+//											if (akeys.length !== bkeys.length) {
+//												console.log("akeys and bkeys lengths differ. " + akeys.length + " vs " + bkeys.length + " returning false");
+//												console.log("akeys=" + JSON.stringify(akeys));
+//												console.log("bkeys=" + JSON.stringify(bkeys));
+//												return false;
+//											}
+//											var k = 0;
+//											while (k < akeys.length) {
+//												if (a[akeys[k]] !== b[bkeys[k]]) {
+//													console.log("found differing element at k=" + k + ". a[akeys[k]]=" + a[akeys[k]] + " and b[bkeys[k]]=" + b[bkeys[k]]);
+//													return false;
+//												}
+//												k++;
+//											}
+//											return true;
+//										}
+
+										if (areStatesEqual(tiles, newMapEnvelope.tiles)) // nothing changed. state is the same. Update existing row and keep searching
 										{
-											if(a.length !== b.length)
-											{
-												console.log("a and b lengths differ. returning false");
-												return false;
-											}
-											if(typeof a !== typeof b)
-											{
-												console.log("a and b types differ. returning false");
-												return false;
-											}
-											var akeys = Object.keys(a);
-											var bkeys = Object.keys(b);
-											if(akeys.length !== bkeys.length)
-											{
-												console.log("akeys and bkeys lengths differ. returning false");
-												return false;
-											}
-											var k = 0;
-											while(k < akeys.length)
-											{
-												if(a[akeys[k]] !== b[bkeys[k]])
-												{
-													console.log("found differing element at k=" + k + ". a[akeys[k]]=" + a[akeys[k]] + " and b[bkeys[k]]=" + b[bkeys[k]]);
-													return false;	
-												}	
-												k++;	
-											}
-											return true;
-										}
-										
-										if (areEqual(compressed,compressedOldState)) // nothing changed. state is the same. Update existing row and keep searching
-										{
-											console.log("compressed and compressedOldState were equal. updating existing row");
+											console.log("tiles and newMapEnvelope.tiles were equal. updating existing row");
 											var params = {
 												TableName: "EtheriaEvents2",
 												Key: {
@@ -419,7 +559,7 @@ exports.handler = async (event) => {
 											});
 										}
 										else { // state changed. create entirely new row
-											console.log("compressed and compressedOldState were NOT equal. creating new row");
+											console.log("tiles and newMapEnvelope.tiles were NOT equal. creating new row");
 											var params = {
 												TableName: 'EtheriaEvents2',
 												Item: {

@@ -1,7 +1,5 @@
 const AWS = require('aws-sdk');
 const lambda = new AWS.Lambda({ region: 'us-east-1' });
-//const s3 = new AWS.S3();
-//const axios = require('axios');
 const dynamoDB = new AWS.DynamoDB.DocumentClient({ region: 'us-east-1' });
 const pako = require('pako');
 
@@ -267,7 +265,7 @@ exports.handler = async (event) => {
 		};
 
 		var params = {
-			TableName: "EtheriaEvents2",
+			TableName: "EtheriaStates",
 			KeyConditionExpression: "#vs = :vvv",
 			ExpressionAttributeNames: { "#vs": "version" },
 			ExpressionAttributeValues: {
@@ -291,7 +289,7 @@ exports.handler = async (event) => {
 					var touchISO = touchDate.toISOString();
 					var compressed = pako.deflate(JSON.stringify(blankMaps[event.params.querystring.version].tiles), { to: 'string' });
 					var params = {
-						TableName: 'EtheriaEvents2',
+						TableName: 'EtheriaStates',
 						Item: {
 							'version': event.params.querystring.version,
 							'blockNumber': blankMaps[event.params.querystring.version].blockNumber,
@@ -455,7 +453,7 @@ exports.handler = async (event) => {
 							{
 								console.log("no changes detected. Setting nextBlock to searchToBlock + 1;");
 								var params = {
-									TableName: "EtheriaEvents2",
+									TableName: "EtheriaStates",
 									Key: {
 										"version": oldData.Items[0].version,
 										"blockNumber": oldData.Items[0].blockNumber
@@ -537,7 +535,7 @@ exports.handler = async (event) => {
 										{
 											console.log("tiles and newMapEnvelope.tiles were equal. updating existing row");
 											var params = {
-												TableName: "EtheriaEvents2",
+												TableName: "EtheriaStates",
 												Key: {
 													"version": oldData.Items[0].version,
 													"blockNumber": oldData.Items[0].blockNumber
@@ -561,7 +559,7 @@ exports.handler = async (event) => {
 										else { // state changed. create entirely new row
 											console.log("tiles and newMapEnvelope.tiles were NOT equal. creating new row");
 											var params = {
-												TableName: 'EtheriaEvents2',
+												TableName: 'EtheriaStates',
 												Item: {
 													'version': event.params.querystring.version,
 													'blockNumber': numberOfFirstRelevantBlock,

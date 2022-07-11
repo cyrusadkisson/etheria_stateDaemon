@@ -322,23 +322,33 @@ exports.handler = async (event) => {
 					web3.eth.getBlock("latest", false).then(function(latestBlock) { // we use web3.eth.getBlock here to avoid the spreadTimer. We want it immediately. Don't need full tx info either.
 						console.log("latestBlock.number=" + latestBlock.number);
 
-						var searchToBlock = latestBlock.number;
+						var searchToBlock = latestBlock.number; // by default we search to the latest block (unless that distance is too far)
 						var b;
 						if (oldData.Items[0].nextBlock > latestBlock.number) // error case (shouldn't happen). Somehow the system has recorded that it has looked past the most recent ETH block.
 						{												 // In this case, search from data.Items[0].blockNumber instead (i.e. start the nextBlock count over again)
 							console.log("Error case: nextBlock is beyond ETH's most recent block. Handling by resetting search to block of last DB entry + 1.");
-							if (searchToBlock - oldData.Items[0].blockNumber > lookahead) {
+							if ((searchToBlock - oldData.Items[0].blockNumber) > lookahead) {
 								searchToBlock = oldData.Items[0].blockNumber + lookahead; // to avoid overload, get maximum *lookahead* blocks at a time. It'll eventually catch up
 								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].blockNumber);
 								console.log("Limiting to " + lookahead + " blocks from there, ending with " + searchToBlock);
 							}
+							else
+							{
+								console.log("latest block " + 	latestBlock.number + " was not too far ahead of the last block we checked " + oldData.Items[0].blockNumber + ". (" + (searchToBlock - oldData.Items[0].blockNumber) + " was <= lookahead=" + lookahead + ")");
+								console.log("searchToBlock stays " + searchToBlock + " and we start counting at b=(oldData.Items[0].blockNumber+1)=" + (oldData.Items[0].blockNumber + 1));
+							}
 							b = oldData.Items[0].blockNumber + 1; // skip the last block we checked
 						}
 						else { // normal case
-							if (searchToBlock - oldData.Items[0].nextBlock > lookahead) {
+							if ((searchToBlock - oldData.Items[0].nextBlock) > lookahead) {
 								searchToBlock = oldData.Items[0].nextBlock + lookahead; // to avoid overload, get maximum *lookahead* blocks at a time. It'll eventually catch up
 								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].nextBlock);
-								console.log("Limiting to " + lookahead + " blocks from there, ending with " + searchToBlock);
+								console.log("Limiting to " + lookahead + " blocks from there, start counting at b=oldData.Items[0].nextBlock=" + oldData.Items[0].nextBlock + " ending with " + searchToBlock);
+							}
+							else
+							{
+								console.log("latest block " + 	latestBlock.number + " was not too far ahead of the last block we checked " + oldData.Items[0].nextBlock + ". (" + (searchToBlock - oldData.Items[0].nextBlock) + " was <= lookahead=" + lookahead + ")");
+								console.log("searchToBlock stays " + searchToBlock + " and we start counting at b=oldData.Items[0].nextBlock=" + oldData.Items[0].nextBlock);
 							}
 							b = oldData.Items[0].nextBlock;
 						}
@@ -451,7 +461,7 @@ exports.handler = async (event) => {
 							var touchTimestamp = Math.floor(touchDate.getTime() / 1000);
 							if (numberOfFirstRelevantBlock === 0) // found nothing interesting. Update row's nextBlock value
 							{
-								console.log("no changes detected. Setting nextBlock to searchToBlock + 1;");
+								console.log("no changes detected. Setting nextBlock to searchToBlock + 1 (" + (searchToBlock + 1) + ")");
 								var params = {
 									TableName: "EtheriaStates",
 									Key: {
@@ -557,7 +567,7 @@ exports.handler = async (event) => {
 											});
 										}
 										else { // state changed. create entirely new row
-											console.log("tiles and newMapEnvelope.tiles were NOT equal. creating new row");
+											console.log("tiles and newMapEnvelope.tiles were NOT equal. creating new row with nextBlock=(numberOfFirstRelevantBlock + 1)=" + (numberOfFirstRelevantBlock + 1));
 											var params = {
 												TableName: 'EtheriaStates',
 												Item: {

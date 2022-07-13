@@ -2,6 +2,7 @@ const AWS = require('aws-sdk');
 const lambda = new AWS.Lambda({ region: 'us-east-1' });
 const dynamoDB = new AWS.DynamoDB.DocumentClient({ region: 'us-east-1' });
 const pako = require('pako');
+const axios = require('axios');
 
 var blankMaps = {};
 blankMaps["0.9"] = require('./json/v0pt9_blank.json');
@@ -64,42 +65,42 @@ var web3 = new Web3(process.env.WEB3_PROVIDER_URL_1);
 var lookahead = process.env.LOOKAHEAD * 1;
 
 function arraysEqual(a, b) {
-  if (a === b) return true;
-  if (a == null || b == null) return false;
-  if (a.length !== b.length) return false;
+	if (a === b) return true;
+	if (a == null || b == null) return false;
+	if (a.length !== b.length) return false;
 
-  // If you don't care about the order of the elements inside
-  // the array, you should sort both arrays here.
-  // Please note that calling sort on an array will modify that array.
-  // you might want to clone your array first.
+	// If you don't care about the order of the elements inside
+	// the array, you should sort both arrays here.
+	// Please note that calling sort on an array will modify that array.
+	// you might want to clone your array first.
 
-  for (var i = 0; i < a.length; ++i) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
+	for (var i = 0; i < a.length; ++i) {
+		if (a[i] !== b[i]) return false;
+	}
+	return true;
 }
 
 function areStatesEqual(a, b) // uncompressed states
 {
-//	console.log(JSON.stringify(a));
-//	console.log(JSON.stringify(b));
-//	console.log("typeof a=" + typeof a);
-//	console.log("typeof b=" + typeof b);
-//	console.log("Array.isArray(a)=" + Array.isArray(a));
-//	console.log("Array.isArray(b)=" + Array.isArray(b));
+	//	console.log(JSON.stringify(a));
+	//	console.log(JSON.stringify(b));
+	//	console.log("typeof a=" + typeof a);
+	//	console.log("typeof b=" + typeof b);
+	//	console.log("Array.isArray(a)=" + Array.isArray(a));
+	//	console.log("Array.isArray(b)=" + Array.isArray(b));
 
-//	if (typeof a !== typeof b) {
-//		console.log("a and b types differ. returning false");
-//		console.log("typeof a=" + typeof a);
-//		console.log("typeof b=" + typeof b);
-//		return false;
-//	}
-//	console.log("a & b types are equal");
-//
-//	if (Array.isArray(a) ) {
-//			console.log("a & b should be instanceof Array and are not. returning false");
-//			return false;
-//	}
+	//	if (typeof a !== typeof b) {
+	//		console.log("a and b types differ. returning false");
+	//		console.log("typeof a=" + typeof a);
+	//		console.log("typeof b=" + typeof b);
+	//		return false;
+	//	}
+	//	console.log("a & b types are equal");
+	//
+	//	if (Array.isArray(a) ) {
+	//			console.log("a & b should be instanceof Array and are not. returning false");
+	//			return false;
+	//	}
 
 	if (a.length !== b.length) {
 		console.log("a and b lengths differ. " + a.length + " vs " + b.length + " returning false");
@@ -111,14 +112,14 @@ function areStatesEqual(a, b) // uncompressed states
 
 	var l = 0;
 	while (l < a.length) {
-		if (typeof a[l] !== typeof b[l] ) {
+		if (typeof a[l] !== typeof b[l]) {
 			console.log("a[" + l + "] and b[" + l + "] types differ. returning false");
 			console.log("typeof a[" + l + "]=" + typeof a[l]);
 			console.log("typeof b[" + l + "]=" + typeof b[l]);
 			return false;
 		}
-		
-		if (typeof a[l] !== "object" ) {
+
+		if (typeof a[l] !== "object") {
 			console.log("should be type 'object' and isn't. returning false");
 			return false;
 		}
@@ -129,86 +130,83 @@ function areStatesEqual(a, b) // uncompressed states
 			console.log("b=" + JSON.stringify(b));
 			return false;
 		}
-		
-		if(a[l].index !== b[l].index) {
+
+		if (a[l].index !== b[l].index) {
 			console.log("index changed for tile " + l + ". returning false");
 			console.log("a[l].index=" + a[l].index);
 			console.log("b[l].index=" + b[l].index);
 			return false;
 		}
-		
-		if(a[l].elevation !== b[l].elevation) {
+
+		if (a[l].elevation !== b[l].elevation) {
 			console.log("elevation changed for tile " + l + ". returning false");
 			console.log("a[l].elevation=" + a[l].elevation);
 			console.log("b[l].elevation=" + b[l].elevation);
 			return false;
 		}
-		
-		if(a[l].owner !== b[l].owner) {
+
+		if (a[l].owner !== b[l].owner) {
 			console.log("owner changed for tile " + l + ". returning false");
 			console.log("a[l].owner=" + a[l].owner);
 			console.log("b[l].owner=" + b[l].owner);
 			return false;
 		}
-		
-		if(a[l].nameRaw !== b[l].nameRaw) {
+
+		if (a[l].nameRaw !== b[l].nameRaw) {
 			console.log("nameRaw changed for tile " + l + ". returning false");
 			console.log("a[l].nameRaw=" + a[l].nameRaw);
 			console.log("b[l].nameRaw=" + b[l].nameRaw);
 			return false;
 		}
-		
-		if(a[l].name !== b[l].name) {
+
+		if (a[l].name !== b[l].name) {
 			console.log("name changed for tile " + l + ". returning false");
 			console.log("a[l].name=" + a[l].name);
 			console.log("b[l].name=" + b[l].name);
 			return false;
 		}
-		
-		if(a[l].status !== b[l].status) {
+
+		if (a[l].status !== b[l].status) {
 			console.log("status changed for tile " + l + ". returning false");
 			console.log("a[l].status=" + a[l].status);
 			console.log("b[l].status=" + b[l].status);
 			return false;
 		}
-		
-		if(a[l].blocks.length !== b[l].blocks.length) {
+
+		if (a[l].blocks.length !== b[l].blocks.length) {
 			console.log("blocks.length changed for tile " + l + ". returning false");
 			console.log("a[l].blocks=" + JSON.stringify(a[l].blocks) + " a[l].blocks.length=" + a[l].blocks.length);
 			console.log("b[l].blocks=" + JSON.stringify(b[l].blocks) + " b[l].blocks.length=" + b[l].blocks.length);
 			return false;
 		}
-		
-		if(a[l].blocks.length > 0)
-		{
+
+		if (a[l].blocks.length > 0) {
 			var j = 0;
-			while(j < a[l].blocks.length)
-			{
-				if(!arraysEqual(a[l].blocks[j], b[l].blocks[j]))
-				{
+			while (j < a[l].blocks.length) {
+				if (!arraysEqual(a[l].blocks[j], b[l].blocks[j])) {
 					console.log("blocks changed for tile " + l + ", block index=" + j + ". returning false");
 					console.log("a[l].blocks[j]=" + JSON.stringify(a[l].blocks[j]));
 					console.log("b[l].blocks[j]=" + JSON.stringify(b[l].blocks[j]));
 				}
-				j++;	
+				j++;
 			}
 			console.log("a&b[" + l + "].blocks length were > 0 but all were the same. continuing.");
 		}
-		
-		if(a[l].ownerOf !== b[l].ownerOf) {
+
+		if (a[l].ownerOf !== b[l].ownerOf) {
 			console.log("ownerOf changed for tile " + l + ". returning false");
 			console.log("a[l].ownerOf=" + a[l].ownerOf);
 			console.log("b[l].ownerOf=" + b[l].ownerOf);
 			return false;
 		}
-		
-		if(a[l].ask !== b[l].ask) {
+
+		if (a[l].ask !== b[l].ask) {
 			console.log("ask changed for tile " + l + ". returning false");
 			console.log("a[l].ask=" + a[l].ask);
 			console.log("b[l].ask=" + b[l].ask);
 			return false;
 		}
-		
+
 		l++;
 	}
 
@@ -332,9 +330,8 @@ exports.handler = async (event) => {
 								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].blockNumber);
 								console.log("Limiting to " + lookahead + " blocks from there, ending with " + searchToBlock);
 							}
-							else
-							{
-								console.log("latest block " + 	latestBlock.number + " was not too far ahead of the last block we checked " + oldData.Items[0].blockNumber + ". (" + (searchToBlock - oldData.Items[0].blockNumber) + " was <= lookahead=" + lookahead + ")");
+							else {
+								console.log("latest block " + latestBlock.number + " was not too far ahead of the last block we checked " + oldData.Items[0].blockNumber + ". (" + (searchToBlock - oldData.Items[0].blockNumber) + " was <= lookahead=" + lookahead + ")");
 								console.log("searchToBlock stays " + searchToBlock + " and we start counting at b=(oldData.Items[0].blockNumber+1)=" + (oldData.Items[0].blockNumber + 1));
 							}
 							b = oldData.Items[0].blockNumber + 1; // skip the last block we checked
@@ -345,9 +342,8 @@ exports.handler = async (event) => {
 								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].nextBlock);
 								console.log("Limiting to " + lookahead + " blocks from there, start counting at b=oldData.Items[0].nextBlock=" + oldData.Items[0].nextBlock + " ending with " + searchToBlock);
 							}
-							else
-							{
-								console.log("latest block " + 	latestBlock.number + " was not too far ahead of the last block we checked " + oldData.Items[0].nextBlock + ". (" + (searchToBlock - oldData.Items[0].nextBlock) + " was <= lookahead=" + lookahead + ")");
+							else {
+								console.log("latest block " + latestBlock.number + " was not too far ahead of the last block we checked " + oldData.Items[0].nextBlock + ". (" + (searchToBlock - oldData.Items[0].nextBlock) + " was <= lookahead=" + lookahead + ")");
 								console.log("searchToBlock stays " + searchToBlock + " and we start counting at b=oldData.Items[0].nextBlock=" + oldData.Items[0].nextBlock);
 							}
 							b = oldData.Items[0].nextBlock;
@@ -521,25 +517,25 @@ exports.handler = async (event) => {
 										//										console.log("typeof compressedOldState=" + typeof compressedOldState);
 										//										console.log("compressed.length=" + compressed.length);
 										//										console.log("compressedOldState.length=" + compressedOldState.length);
-//										function areEqual(a, b) {
-//											var akeys = Object.keys(a);
-//											var bkeys = Object.keys(b);
-//											if (akeys.length !== bkeys.length) {
-//												console.log("akeys and bkeys lengths differ. " + akeys.length + " vs " + bkeys.length + " returning false");
-//												console.log("akeys=" + JSON.stringify(akeys));
-//												console.log("bkeys=" + JSON.stringify(bkeys));
-//												return false;
-//											}
-//											var k = 0;
-//											while (k < akeys.length) {
-//												if (a[akeys[k]] !== b[bkeys[k]]) {
-//													console.log("found differing element at k=" + k + ". a[akeys[k]]=" + a[akeys[k]] + " and b[bkeys[k]]=" + b[bkeys[k]]);
-//													return false;
-//												}
-//												k++;
-//											}
-//											return true;
-//										}
+										//										function areEqual(a, b) {
+										//											var akeys = Object.keys(a);
+										//											var bkeys = Object.keys(b);
+										//											if (akeys.length !== bkeys.length) {
+										//												console.log("akeys and bkeys lengths differ. " + akeys.length + " vs " + bkeys.length + " returning false");
+										//												console.log("akeys=" + JSON.stringify(akeys));
+										//												console.log("bkeys=" + JSON.stringify(bkeys));
+										//												return false;
+										//											}
+										//											var k = 0;
+										//											while (k < akeys.length) {
+										//												if (a[akeys[k]] !== b[bkeys[k]]) {
+										//													console.log("found differing element at k=" + k + ". a[akeys[k]]=" + a[akeys[k]] + " and b[bkeys[k]]=" + b[bkeys[k]]);
+										//													return false;
+										//												}
+										//												k++;
+										//											}
+										//											return true;
+										//										}
 
 										if (areStatesEqual(tiles, newMapEnvelope.tiles)) // nothing changed. state is the same. Update existing row and keep searching
 										{
@@ -589,7 +585,137 @@ exports.handler = async (event) => {
 												}
 												else {
 													console.log(getHrDate() + " " + event.params.querystring.version + " " + params.TableName + " put success. data=" + JSON.stringify(data));
-													resolve(); // found nothing, resolve with nothing
+
+													var webhookUrl;
+													if (event.params.querystring.version === "0.9")
+														webhookUrl = "https://discord.com/api/webhooks/968811925372809296/3QUu54cbOaYGecb174UbZ8CRa0pkIQ4j2NaoHATLX88akNSpIxnKwvrrQ-aazsxmpRjb";
+													else if (event.params.querystring.version === "1.0")
+														webhookUrl = "https://discord.com/api/webhooks/968812720021459004/l6DQGcI37KTElShTpwPp1e_WP8lxdJV0XAmV3INnyGWfNdg9CLw3sgyqlC8P49QQna6-";
+													else if (event.params.querystring.version === "1.1")
+														webhookUrl = "https://discord.com/api/webhooks/968813098486104085/c8cWe6jferXVxz98gxH8zyRLK9UhYZI-ivdWVKO_KeBrie5GPu55PObjEQOr1GbsuPWW";
+													else if (event.params.querystring.version === "1.2")
+														webhookUrl = "https://discord.com/api/webhooks/968814327605899294/2iHPSGEykEQRf_Pqbjru7el4xRrmaAOh6JDrINHucHp-W5HbmNhbgKKCttP1_tUV5AUX";
+
+													// both versions of the map need to be valid to do proper comparisons. If not, just resolve and go to next firing.
+													var msgPromises = [];
+													var i = 0;
+													while (i < 1089) {
+														if (newMapEnvelope.tiles[i].elevation >= 125) {
+
+															// empty builds are still builds where it's all 0s
+															// this means that any name change is a build change
+
+															if (tiles[i].nameRaw !== newMapEnvelope.tiles[i].nameRaw) { // something in the name field has changed... 
+																console.log("oldMapEnvelope and newMapEnvelope nameRaws were different");
+																console.log("newMapEnvelope.tiles[i].name=" + newMapEnvelope.tiles[i].name);
+																// Possibilities:
+																// 1. Someone updated the name field with a UTF-8 string, ignoring build scheme
+																// 2a. Someone updated the name field with a build scheme
+																// 2b. Someone updated the name field with an empty build
+																// (2a and 2b are the same thing, from our perspective)
+
+																if (newMapEnvelope.tiles[i].name.endsWith("(+ build data)")) // nameRaw has changed and it is build data. Spin it off, though the build data may ultimately be the same.
+																{
+																	console.log("oldMapEnvelope and newMapEnvelope nameRaws were different and it had build data parenthetical");
+																	// spin off newBuildUsher // FIXME? this might need to be synchronous, otherwise multiple builds in the same block could be racing
+																	var buildUsherParams = {
+																		FunctionName: "arn:aws:lambda:us-east-1:540151370381:function:etheria_newBuildUsher",
+																		InvocationType: "Event", // force asynchronicity
+																		Payload: JSON.stringify({
+																			"body-json": {},
+																			"params": {
+																				"path": {},
+																				"querystring": {
+																					"tileIndexAndVersion": i + "v" + newMapEnvelope.version,
+																					"version": newMapEnvelope.version,
+																					"tileIndex": i + "",
+																					"blockNumber": newMapEnvelope.blockNumber + "",
+																					"hexString": newMapEnvelope.tiles[i].nameRaw
+																				}
+																			}
+																		})
+																	}
+																	console.log("invoking newBuildUsher lambda with buildUsherParams=" + JSON.stringify(buildUsherParams, null, 2));
+																	lambda.invoke(buildUsherParams, function(err, data) {
+																		console.log("in newBuildUsher invocation callback");
+																		if (err) {
+																			console.log("Got error back from function:etheria_newBuildUsher err=" + err);
+																			reject(err);
+																			return;
+																		}
+																		console.log("no error, data=" + JSON.stringify(data));
+																	}); // this is spun off aynchronously, we don't know if there's an error or success, so no point in handling them
+																	console.log("after newBuildUsher invocation");
+																}
+																console.log("after (+ build data) check block");
+																if (tiles[i].name === newMapEnvelope.tiles[i].name) // the nameRaw has changed, but our "name" is the same as before, this means build data has changed 
+																{
+																	console.log("nameRaw changed but name didn't");
+																	msgPromises.push(axios.post(webhookUrl, {
+																		content: "Tile " + i + " build data change\nold: \"" + tiles[i].name + "\"\nnew: \"" + newMapEnvelope.tiles[i].name + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	}));
+																}
+																else // nameRaw has changed AND name has changed
+																{
+																	console.log("nameRaw and name changed");
+																	console.log("webhookUrl=" + webhookUrl);
+																	console.log("content=Tile " + i + " name change\nold: \"" + tiles[i].name + "\"\nnew: \"" + newMapEnvelope.tiles[i].name + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i);
+																	msgPromises.push(axios.post(webhookUrl, {
+																		content: "Tile " + i + " name change\nold: \"" + tiles[i].name + "\"\nnew: \"" + newMapEnvelope.tiles[i].name + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	}));
+																}
+																console.log("leaving 'Something in the name field changed' block to execute msgPromises");
+															}
+
+															if (tiles[i].owner !== newMapEnvelope.tiles[i].owner) {
+																console.log("owner changed for tile " + i);
+																console.log("owner old=" + tiles[i].owner + " and owner new=" + newMapEnvelope.tiles[i].owner);
+																msgPromises.push(axios.post(webhookUrl, {
+																	content: "Tile " + i + " owner change\nold: \"" + tiles[i].owner + "\"\nnew: \"" + newMapEnvelope.tiles[i].owner + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																}));
+															}
+
+															if (tiles[i].ownerOf !== newMapEnvelope.tiles[i].ownerOf) {
+																console.log("ownerOf changed for tile " + i);
+																console.log("ownerOf old=" + tiles[i].ownerOf + " and ownerOf new=" + newMapEnvelope.tiles[i].ownerOf);
+																msgPromises.push(axios.post(webhookUrl, {
+																	content: "Tile " + i + " 721-owner change\nold: \"" + tiles[i].ownerOf + "\"\nnew: \"" + newMapEnvelope.tiles[i].ownerOf + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																}));
+															}
+
+															if (tiles[i].ask !== newMapEnvelope.tiles[i].ask) {
+																console.log("ask changed for tile " + i);
+																console.log("ask old=" + tiles[i].ask + " and ask new=" + newMapEnvelope.tiles[i].ask);
+																msgPromises.push(axios.post(webhookUrl, {
+																	content: "Tile " + i + " ask change\nold: \"" + tiles[i].ask + "\"\nnew: \"" + newMapEnvelope.tiles[i].ask + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																}));
+															}
+														}
+														i++;
+													}
+
+													console.log("msgPromises.length=" + msgPromises.length);
+													if (msgPromises.length === 0) {
+														console.log("resolving due to no msgPromises to execute");
+														resolve();
+														return;
+													}
+													else
+													{
+														console.log("not yet resolving bc we have msgPromises to execute");	
+													}
+													
+													Promise.all(msgPromises).then((resultingArray) => {
+														console.log("done with msgPromises and resolving");
+														resolve();
+														return;
+													})
+														.catch((error) => {
+															console.log("caught error with msgPromises");
+															reject("Promise.all(msgPromises) error: " + error);
+															return;
+														});
+													console.log("after msgPromises execution");
 												}
 											});
 										}

@@ -687,7 +687,7 @@ exports.handler = async (event) => {
 																console.log("ask changed for tile " + i);
 																console.log("ask old=" + tiles[i].ask + " and ask new=" + newMapEnvelope.tiles[i].ask);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: "Tile " + i + " ask change\nold: \"" + tiles[i].ask + "\"\nnew: \"" + newMapEnvelope.tiles[i].ask + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: "Tile " + i + " ask change\nold: " + web3.utils.fromWei(tiles[i].ask,"ether") + " ETH\nnew: " + web3.utils.fromWei(newMapEnvelope.tiles[i].ask,"ether") + " ETH\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 														}

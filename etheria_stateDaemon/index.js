@@ -31,7 +31,8 @@ var v1pt2Addresses = [
 ];
 
 var openseaAddresses = [
-	"0x7f268357A8c2552623316e2562D90e642bB538E5" // OpenSea Wyvern v2
+	"0x7f268357A8c2552623316e2562D90e642bB538E5", // OpenSea Wyvern v2
+	"0x00000000006c3852cbEf3e08E8dF289169EdE581"  // OpenSea seaport v1.1
 ];
 
 function getRandomInt(min, max) {
@@ -400,7 +401,7 @@ exports.handler = async (event) => {
 										keepLoopingResultArray = false;
 										keepLoopingTransactions = false;
 									}
-									// atomic match hash = 0xab834bab
+									// wyvern atomic match hash = 0xab834bab
 									else if (openseaAddresses.includes(resultArray[i].transactions[t].to) && resultArray[i].transactions[t].input.startsWith("0xab834bab")) {
 										//console.log("* Found OpenSea atomic_match tx in block " + resultArray[i].number + " from " + resultArray[i].transactions[t].from + " to " + resultArray[i].transactions[t].to + " tx hash:" + resultArray[i].transactions[t].hash);
 										if (resultArray[i].transactions[t].input.length < 3666) {
@@ -408,6 +409,31 @@ exports.handler = async (event) => {
 										}
 										else {
 											targetContract = "0x" + resultArray[i].transactions[t].input.substring(3626, 3666);
+											//console.log("    target contract addr:" + targetContract);
+											var oA = 0;
+											keepLoopingOurAddresses = true;
+											while (oA < ourAddresses.length && keepLoopingOurAddresses === true) {
+												if (ourAddresses[oA].toLowerCase() === targetContract) {
+													console.log("FOUND OPENSEA atomic_match TX FOR OUR CONTRACT!");
+													console.log("    tx:" + JSON.stringify(resultArray[i].transactions[t]));
+													numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
+													console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
+													keepLoopingOurAddresses = false; // break this loop
+													keepLoopingResultArray = false;
+													keepLoopingTransactions = false;
+												}
+												oA++;
+											}
+										}
+									}
+									// seaport fulfillAdvancedOrder 0xe7acab24
+									else if (openseaAddresses.includes(resultArray[i].transactions[t].to) && resultArray[i].transactions[t].input.startsWith("0xe7acab24")) {
+										//console.log("* Found OpenSea atomic_match tx in block " + resultArray[i].number + " from " + resultArray[i].transactions[t].from + " to " + resultArray[i].transactions[t].to + " tx hash:" + resultArray[i].transactions[t].hash);
+										if (resultArray[i].transactions[t].input.length < 3666) {
+											console.log("    tx input data length was only " + resultArray[i].transactions[t].input.length + ". Can't get targetAddress");
+										}
+										else {
+											targetContract = "0x" + resultArray[i].transactions[t].input.substring(1826, 1866);
 											//console.log("    target contract addr:" + targetContract);
 											var oA = 0;
 											keepLoopingOurAddresses = true;
@@ -687,7 +713,7 @@ exports.handler = async (event) => {
 																console.log("ask changed for tile " + i);
 																console.log("ask old=" + tiles[i].ask + " and ask new=" + newMapEnvelope.tiles[i].ask);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: "Tile " + i + " ask change\nold: " + web3.utils.fromWei(tiles[i].ask,"ether") + " ETH\nnew: " + web3.utils.fromWei(newMapEnvelope.tiles[i].ask,"ether") + " ETH\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: "Tile " + i + " ask change\nold: " + web3.utils.fromWei(tiles[i].ask, "ether") + " ETH\nnew: " + web3.utils.fromWei(newMapEnvelope.tiles[i].ask, "ether") + " ETH\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 														}
@@ -700,11 +726,10 @@ exports.handler = async (event) => {
 														resolve();
 														return;
 													}
-													else
-													{
-														console.log("not yet resolving bc we have msgPromises to execute");	
+													else {
+														console.log("not yet resolving bc we have msgPromises to execute");
 													}
-													
+
 													Promise.all(msgPromises).then((resultingArray) => {
 														console.log("done with msgPromises and resolving");
 														resolve();

@@ -81,137 +81,81 @@ function arraysEqual(a, b) {
 	return true;
 }
 
-function areStatesEqual(a, b) // uncompressed states
+function areStatesEqual(a, b, version, blockNumber, timestamp, dateISO) // uncompressed states
 {
-	//	console.log(JSON.stringify(a));
-	//	console.log(JSON.stringify(b));
-	//	console.log("typeof a=" + typeof a);
-	//	console.log("typeof b=" + typeof b);
-	//	console.log("Array.isArray(a)=" + Array.isArray(a));
-	//	console.log("Array.isArray(b)=" + Array.isArray(b));
-
-	//	if (typeof a !== typeof b) {
-	//		console.log("a and b types differ. returning false");
-	//		console.log("typeof a=" + typeof a);
-	//		console.log("typeof b=" + typeof b);
-	//		return false;
-	//	}
-	//	console.log("a & b types are equal");
-	//
-	//	if (Array.isArray(a) ) {
-	//			console.log("a & b should be instanceof Array and are not. returning false");
-	//			return false;
-	//	}
-
-	if (a.length !== b.length) {
-		console.log("a and b lengths differ. " + a.length + " vs " + b.length + " returning false");
-		console.log("a=" + a);
-		console.log("b=" + b);
-		return false;
-	}
-	console.log("a & b lengths are equal at " + a.length);
-
 	var l = 0;
+	var eventStrings = [];
 	while (l < a.length) {
-		if (typeof a[l] !== typeof b[l]) {
-			console.log("a[" + l + "] and b[" + l + "] types differ. returning false");
-			console.log("typeof a[" + l + "]=" + typeof a[l]);
-			console.log("typeof b[" + l + "]=" + typeof b[l]);
-			return false;
-		}
-
-		if (typeof a[l] !== "object") {
-			console.log("should be type 'object' and isn't. returning false");
-			return false;
-		}
-
-		if (Object.keys(a[l]).length !== Object.keys(b[l]).length) {
-			console.log("Object.keys(a[l]) and Object.keys(b[l]) lengths differ. " + Object.keys(a[l]).length + " vs " + Object.keys(b[l]).length + " returning false");
-			console.log("a=" + JSON.stringify(a));
-			console.log("b=" + JSON.stringify(b));
-			return false;
-		}
-
-		if (a[l].index !== b[l].index) {
-			console.log("index changed for tile " + l + ". returning false");
-			console.log("a[l].index=" + a[l].index);
-			console.log("b[l].index=" + b[l].index);
-			return false;
-		}
-
-		if (a[l].elevation !== b[l].elevation) {
-			console.log("elevation changed for tile " + l + ". returning false");
-			console.log("a[l].elevation=" + a[l].elevation);
-			console.log("b[l].elevation=" + b[l].elevation);
-			return false;
-		}
-
 		if (a[l].owner !== b[l].owner) {
-			console.log("owner changed for tile " + l + ". returning false");
+			console.log("Owner changed from " + a[l].owner + " to " + b[l].owner);
 			console.log("a[l].owner=" + a[l].owner);
 			console.log("b[l].owner=" + b[l].owner);
-			return false;
+			eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "owner", "before": a[l].owner, "after": b[l].owner });
 		}
 
 		if (a[l].nameRaw !== b[l].nameRaw) {
-			console.log("nameRaw changed for tile " + l + ". returning false");
+			console.log("Name (raw hex) changed from " + a[l].nameRaw + " to " + b[l].nameRaw);
 			console.log("a[l].nameRaw=" + a[l].nameRaw);
 			console.log("b[l].nameRaw=" + b[l].nameRaw);
-			return false;
+			//			return "Name (raw hex) changed from " + a[l].nameRaw + " to " + b[l].nameRaw;
+			eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "nameRaw", "before": a[l].nameRaw, "after": b[l].nameRaw });
 		}
 
 		if (a[l].name !== b[l].name) {
-			console.log("name changed for tile " + l + ". returning false");
+			console.log("Name changed from " + a[l].name + " to " + b[l].name);
 			console.log("a[l].name=" + a[l].name);
 			console.log("b[l].name=" + b[l].name);
-			return false;
+			eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "name", "before": a[l].name, "after": b[l].name });
 		}
 
 		if (a[l].status !== b[l].status) {
-			console.log("status changed for tile " + l + ". returning false");
+			console.log("Status changed from " + a[l].status + " to " + b[l].status);
 			console.log("a[l].status=" + a[l].status);
 			console.log("b[l].status=" + b[l].status);
-			return false;
+			eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "status", "before": a[l].status, "after": b[l].status });
 		}
 
 		if (a[l].blocks.length !== b[l].blocks.length) {
-			console.log("blocks.length changed for tile " + l + ". returning false");
+			console.log("Tile was farmed for blocks, increasing block array length from " + a[l].blocks.length + " to " + b[l].blocks.length);
 			console.log("a[l].blocks=" + JSON.stringify(a[l].blocks) + " a[l].blocks.length=" + a[l].blocks.length);
 			console.log("b[l].blocks=" + JSON.stringify(b[l].blocks) + " b[l].blocks.length=" + b[l].blocks.length);
-			return false;
+			eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "blocks", "before": JSON.stringify(a[l].blocks), "after": JSON.stringify(b[l].blocks) });
 		}
 
 		if (a[l].blocks.length > 0) {
 			var j = 0;
 			while (j < a[l].blocks.length) {
 				if (!arraysEqual(a[l].blocks[j], b[l].blocks[j])) {
-					console.log("blocks changed for tile " + l + ", block index=" + j + ". returning false");
+					console.log("Block at index " + j + " was edited from " + JSON.stringify(a[l].blocks[j]) + " to " + JSON.stringify(b[l].blocks[j]));
 					console.log("a[l].blocks[j]=" + JSON.stringify(a[l].blocks[j]));
 					console.log("b[l].blocks[j]=" + JSON.stringify(b[l].blocks[j]));
+					eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "blocks", "before": JSON.stringify(a[l].blocks), "after": JSON.stringify(b[l].blocks) });
 				}
 				j++;
 			}
-			console.log("a&b[" + l + "].blocks length were > 0 but all were the same. continuing.");
+			//			console.log("a&b[" + l + "].blocks length were > 0 but all were the same. continuing.");
 		}
 
 		if (a[l].ownerOf !== b[l].ownerOf) {
 			console.log("ownerOf changed for tile " + l + ". returning false");
 			console.log("a[l].ownerOf=" + a[l].ownerOf);
 			console.log("b[l].ownerOf=" + b[l].ownerOf);
-			return false;
+			eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "ownerOf", "before": a[l].ownerOf, "after": b[l].ownerOf });
 		}
 
 		if (a[l].ask !== b[l].ask) {
 			console.log("ask changed for tile " + l + ". returning false");
 			console.log("a[l].ask=" + a[l].ask);
 			console.log("b[l].ask=" + b[l].ask);
-			return false;
+			eventStrings.push({ "index": l, "version": version, "blockNumber": blockNumber, "timestamp": timestamp, "dateISO": dateISO, "attribute": "ask", "before": a[l].ask, "after": b[l].ask });
 		}
 
 		l++;
 	}
-
-	return true;
+	if (eventStrings.length === 0)
+		return true;
+	else
+		return eventStrings;
 }
 
 exports.handler = async (event) => {
@@ -562,8 +506,8 @@ exports.handler = async (event) => {
 										//											}
 										//											return true;
 										//										}
-
-										if (areStatesEqual(tiles, newMapEnvelope.tiles)) // nothing changed. state is the same. Update existing row and keep searching
+										var eventStrings = areStatesEqual(tiles, newMapEnvelope.tiles, event.params.querystring.version, newMapEnvelope.blockNumber, newMapEnvelope.timestamp, (new Date(newMapEnvelope.timestamp * 1000)).toISOString());
+										if (eventStrings === true) // nothing changed. state is the same. Update existing row and keep searching
 										{
 											console.log("tiles and newMapEnvelope.tiles were equal. updating existing row");
 											var params = {
@@ -590,6 +534,7 @@ exports.handler = async (event) => {
 										}
 										else { // state changed. create entirely new row
 											console.log("tiles and newMapEnvelope.tiles were NOT equal. creating new row with nextBlock=(numberOfFirstRelevantBlock + 1)=" + (numberOfFirstRelevantBlock + 1));
+											console.log("eventStrings = " + JSON.stringify(eventStrings));
 											var params = {
 												TableName: 'EtheriaStates',
 												Item: {

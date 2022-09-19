@@ -557,6 +557,34 @@ exports.handler = async (event) => {
 												else {
 													console.log(getHrDate() + " " + event.params.querystring.version + " " + params.TableName + " put success. data=" + JSON.stringify(data));
 
+													var x = 0;
+													while (x < eventStrings.length) {
+														var stateChangeParams = {
+															TableName: 'EtheriaStateChanges',
+															Item: {
+																'tileIndexAndVersion': ((eventStrings[x].index + "v") + eventStrings[x].version),
+																'blockNumber': eventStrings[x].blockNumber,
+																'timestamp': eventStrings[x].timestamp,
+																'dateISO': eventStrings[x].dateISO, // must compress state or it'll get to big for Dynamo
+																'attribute': eventStrings[x].attribute,
+																'before': eventStrings[x].before,
+																'after': eventStrings[x].after
+															}
+														};
+
+														dynamoDB.put(stateChangeParams, function(err, data) {
+															if (err) {
+																console.log(getHrDate() + " EtheriaStateChanges db put error. stateChangeParams=" + JSON.stringify(stateChangeParams) + " error=" + err);
+																x = eventStrings.length; // break
+															}
+															else {
+																console.log(getHrDate() + " EtheriaStateChanges db put success. stateChangeParams=" + JSON.stringify(stateChangeParams));//with=" + JSON.stringify(params.Item));
+															}
+														});
+
+														x++;
+													}
+
 													var webhookUrl;
 													if (event.params.querystring.version === "0.9")
 														webhookUrl = "https://discord.com/api/webhooks/968811925372809296/3QUu54cbOaYGecb174UbZ8CRa0pkIQ4j2NaoHATLX88akNSpIxnKwvrrQ-aazsxmpRjb";

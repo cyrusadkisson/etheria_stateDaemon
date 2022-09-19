@@ -558,14 +558,20 @@ exports.handler = async (event) => {
 													console.log(getHrDate() + " " + event.params.querystring.version + " " + params.TableName + " put success. data=" + JSON.stringify(data));
 
 													var x = 0;
+													var paddedBlockNumber = "";
 													while (x < eventStrings.length) {
+														paddedBlockNumber = eventStrings[x].blockNumber + "";
+														while (paddedBlockNumber.length < 10) {
+															paddedBlockNumber = "0" + paddedBlockNumber;
+														}
 														var stateChangeParams = {
-															TableName: 'EtheriaStateChanges',
+															TableName: 'EtheriaStateChanges2',
 															Item: {
 																'tileIndexAndVersion': ((eventStrings[x].index + "v") + eventStrings[x].version),
+																'blockNumberAndAttribute': paddedBlockNumber + "-" + eventStrings[x].attribute,
 																'blockNumber': eventStrings[x].blockNumber,
 																'timestamp': eventStrings[x].timestamp,
-																'dateISO': eventStrings[x].dateISO, // must compress state or it'll get to big for Dynamo
+																'dateISO': eventStrings[x].dateISO, 
 																'attribute': eventStrings[x].attribute,
 																'before': eventStrings[x].before,
 																'after': eventStrings[x].after

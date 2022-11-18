@@ -657,16 +657,23 @@ exports.handler = async (event) => {
 																{
 																	console.log("nameRaw changed but name didn't");
 																	msgPromises.push(axios.post(webhookUrl, {
-																		content: "Tile " + i + " build data change\nold: \"" + tiles[i].name + "\"\nnew: \"" + newMapEnvelope.tiles[i].name + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																		content: 	"Tile " + i + " build data change\n" +
+																					"block: " + newMapEnvelope.blockNumber + "\n" +
+																					"old: \"" + tiles[i].name + "\"\n" + 
+																					"new: \"" + newMapEnvelope.tiles[i].name + "\"\n" + 
+																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																	}));
 																}
 																else // nameRaw has changed AND name has changed
 																{
 																	console.log("nameRaw and name changed");
 																	console.log("webhookUrl=" + webhookUrl);
-																	console.log("content=Tile " + i + " name change\nold: \"" + tiles[i].name + "\"\nnew: \"" + newMapEnvelope.tiles[i].name + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i);
 																	msgPromises.push(axios.post(webhookUrl, {
-																		content: "Tile " + i + " name change\nold: \"" + tiles[i].name + "\"\nnew: \"" + newMapEnvelope.tiles[i].name + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																		content: 	"Tile " + i + " name change\n" + 
+																					"block: " + newMapEnvelope.blockNumber + "\n" +
+																					"old: \"" + tiles[i].name + "\"\n" + 
+																					"new: \"" + newMapEnvelope.tiles[i].name + "\"\n" + 
+																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																	}));
 																}
 																console.log("leaving 'Something in the name field changed' block to execute msgPromises");
@@ -676,7 +683,11 @@ exports.handler = async (event) => {
 																console.log("owner changed for tile " + i);
 																console.log("owner old=" + tiles[i].owner + " and owner new=" + newMapEnvelope.tiles[i].owner);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: "Tile " + i + " owner change\nold: \"" + tiles[i].owner + "\"\nnew: \"" + newMapEnvelope.tiles[i].owner + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: 		"Tile " + i + " owner change\n" + 
+																					"block: " + newMapEnvelope.blockNumber + "\n" +
+																					"old: \"" + tiles[i].owner + "\"\n" + 
+																					"new: \"" + newMapEnvelope.tiles[i].owner + "\"\n" + 
+																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 
@@ -684,7 +695,11 @@ exports.handler = async (event) => {
 																console.log("ownerOf changed for tile " + i);
 																console.log("ownerOf old=" + tiles[i].ownerOf + " and ownerOf new=" + newMapEnvelope.tiles[i].ownerOf);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: "Tile " + i + " 721-owner change\nold: \"" + tiles[i].ownerOf + "\"\nnew: \"" + newMapEnvelope.tiles[i].ownerOf + "\"\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: 		"Tile " + i + " 721-owner change\n" + 
+																					"block: " + newMapEnvelope.blockNumber + "\n" +
+																					"old: \"" + tiles[i].ownerOf + "\"\n" + 
+																					"new: \"" + newMapEnvelope.tiles[i].ownerOf + "\"\n" + 
+																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 
@@ -692,7 +707,11 @@ exports.handler = async (event) => {
 																console.log("ask changed for tile " + i);
 																console.log("ask old=" + tiles[i].ask + " and ask new=" + newMapEnvelope.tiles[i].ask);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: "Tile " + i + " ask change\nold: " + web3.utils.fromWei(tiles[i].ask, "ether") + " ETH\nnew: " + web3.utils.fromWei(newMapEnvelope.tiles[i].ask, "ether") + " ETH\nhttps://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: 		"Tile " + i + " ask change\n" + 
+																					"block: " + newMapEnvelope.blockNumber + "\n" +
+																					"old: " + web3.utils.fromWei(tiles[i].ask, "ether") + " ETH\n" + 
+																					"new: " + web3.utils.fromWei(newMapEnvelope.tiles[i].ask, "ether") + " ETH\n" + 
+																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 														}

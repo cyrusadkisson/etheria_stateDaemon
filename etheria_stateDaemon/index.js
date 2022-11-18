@@ -272,7 +272,7 @@ exports.handler = async (event) => {
 							console.log("Error case: nextBlock is beyond ETH's most recent block. Handling by resetting search to block of last DB entry + 1.");
 							if ((searchToBlock - oldData.Items[0].blockNumber) > lookahead) {
 								searchToBlock = oldData.Items[0].blockNumber + lookahead; // to avoid overload, get maximum *lookahead* blocks at a time. It'll eventually catch up
-								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].blockNumber);
+								console.log("WARNING: Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].blockNumber);
 								console.log("Limiting to " + lookahead + " blocks from there, ending with " + searchToBlock);
 							}
 							else {
@@ -284,7 +284,7 @@ exports.handler = async (event) => {
 						else { // normal case
 							if ((searchToBlock - oldData.Items[0].nextBlock) > lookahead) {
 								searchToBlock = oldData.Items[0].nextBlock + lookahead; // to avoid overload, get maximum *lookahead* blocks at a time. It'll eventually catch up
-								console.log("Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].nextBlock);
+								console.log("WARNING: Latest block " + latestBlock.number + " is too far ahead of the last block we checked " + oldData.Items[0].nextBlock);
 								console.log("Limiting to " + lookahead + " blocks from there, start counting at b=oldData.Items[0].nextBlock=" + oldData.Items[0].nextBlock + " ending with " + searchToBlock);
 							}
 							else {

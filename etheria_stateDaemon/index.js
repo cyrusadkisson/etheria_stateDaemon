@@ -65,7 +65,6 @@ function getBlock(atBlock, hydrated) {
 var Web3 = require('web3');
 var web3 = new Web3(process.env.WEB3_PROVIDER_URL_1);
 var lookahead = process.env.LOOKAHEAD * 1;
-const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID;
 
 function arraysEqual(a, b) {
 	if (a === b) return true;
@@ -418,7 +417,7 @@ exports.handler = async (event) => {
 
 													var params = {
 														Message: 'stateDaemon found relevent Seaport 1.1 tx for v' + event.params.querystring.version + ' with unknown function hash ' + resultArray[i].transactions[t].input.substring(0, 10) + " txHash=" + resultArray[i].transactions[t].hash,
-														TopicArn: 'arn:aws:sns:us-east-1:" + AWS_ACCOUNT_ID + ":stateDaemon_unknown_Seaport_tx_function'
+														TopicArn: 'arn:aws:sns:us-east-1:" + process.env.AWS_ACCOUNT_ID + ":stateDaemon_unknown_Seaport_tx_function'
 													};
 													
 													var publishTextPromise = sns.publish(params).promise();
@@ -500,7 +499,7 @@ exports.handler = async (event) => {
 							{
 								console.log("found tx to relevant address. Generating map state...");
 								lambda.invoke({
-									FunctionName: "arn:aws:lambda:us-east-1:" + AWS_ACCOUNT_ID + ":function:etheria_getMapState",
+									FunctionName: "arn:aws:lambda:us-east-1:" + process.env.AWS_ACCOUNT_ID + ":function:etheria_getMapState",
 									//InvocationType: "Event", // force asynchronicity
 									Payload: JSON.stringify({
 										"body-json": {},
@@ -639,13 +638,13 @@ exports.handler = async (event) => {
 
 													var webhookUrl;
 													if (event.params.querystring.version === "0.9")
-														webhookUrl = "https://discord.com/api/webhooks/968811925372809296/3QUu54cbOaYGecb174UbZ8CRa0pkIQ4j2NaoHATLX88akNSpIxnKwvrrQ-aazsxmpRjb";
+														webhookUrl = process.env.V0PT9_DISCORD_WEBHOOK_URL;
 													else if (event.params.querystring.version === "1.0")
-														webhookUrl = "https://discord.com/api/webhooks/968812720021459004/l6DQGcI37KTElShTpwPp1e_WP8lxdJV0XAmV3INnyGWfNdg9CLw3sgyqlC8P49QQna6-";
+														webhookUrl = process.env.V1PT0_DISCORD_WEBHOOK_URL;
 													else if (event.params.querystring.version === "1.1")
-														webhookUrl = "https://discord.com/api/webhooks/968813098486104085/c8cWe6jferXVxz98gxH8zyRLK9UhYZI-ivdWVKO_KeBrie5GPu55PObjEQOr1GbsuPWW";
+														webhookUrl = process.env.V1PT1_DISCORD_WEBHOOK_URL;
 													else if (event.params.querystring.version === "1.2")
-														webhookUrl = "https://discord.com/api/webhooks/968814327605899294/2iHPSGEykEQRf_Pqbjru7el4xRrmaAOh6JDrINHucHp-W5HbmNhbgKKCttP1_tUV5AUX";
+														webhookUrl = process.env.V1PT2_DISCORD_WEBHOOK_URL;
 
 													// both versions of the map need to be valid to do proper comparisons. If not, just resolve and go to next firing.
 													var msgPromises = [];
@@ -670,7 +669,7 @@ exports.handler = async (event) => {
 																	console.log("oldMapEnvelope and newMapEnvelope nameRaws were different and it had build data parenthetical");
 																	// spin off newBuildUsher // FIXME? this might need to be synchronous, otherwise multiple builds in the same block could be racing
 																	var buildUsherParams = {
-																		FunctionName: "arn:aws:lambda:us-east-1:" + AWS_ACCOUNT_ID + ":function:etheria_newBuildUsher",
+																		FunctionName: "arn:aws:lambda:us-east-1:" + process.env.AWS_ACCOUNT_ID + ":function:etheria_newBuildUsher",
 																		InvocationType: "Event", // force asynchronicity
 																		Payload: JSON.stringify({
 																			"body-json": {},

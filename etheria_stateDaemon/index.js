@@ -3,6 +3,7 @@ const lambda = new AWS.Lambda({ region: 'us-east-1' });
 const dynamoDB = new AWS.DynamoDB.DocumentClient({ region: 'us-east-1' });
 const pako = require('pako');
 const axios = require('axios');
+const sns = new AWS.SNS({ apiVersion: '2010-03-31' });
 
 var blankMaps = {};
 blankMaps["0.9"] = require('./json/v0pt9_blank.json');
@@ -64,6 +65,7 @@ function getBlock(atBlock, hydrated) {
 var Web3 = require('web3');
 var web3 = new Web3(process.env.WEB3_PROVIDER_URL_1);
 var lookahead = process.env.LOOKAHEAD * 1;
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID;
 
 function arraysEqual(a, b) {
 	if (a === b) return true;
@@ -192,16 +194,6 @@ exports.handler = async (event) => {
 		}
 		console.log("version=" + event.params.querystring.version);
 
-		//		if (!event.params.querystring.file || typeof event.params.querystring.file !== "string") {
-		//			reject(new Error("event.params.querystring.file is invalid or missing"));
-		//			return;
-		//		}
-		//		console.log("event.params.querystring.file=" + event.params.querystring.file);
-
-		//		if (!event.params.querystring.atBlock)
-		//			event.params.querystring.atBlock = "latest";
-		//		console.log("atBlock=" + event.params.querystring.atBlock);
-
 		var exclusiveStartKey = {
 			"version": event.params.querystring.version,
 			"blockNumber": 9000000000 //(event.params.querystring.atBlock * 1)
@@ -303,7 +295,7 @@ exports.handler = async (event) => {
 							var i = 0;
 							var t = 0;
 							var numberOfFirstRelevantBlock = 0;
-							var targetContract = "";
+							//							var targetContract = "";
 
 							var ourAddresses = [];
 							if (event.params.querystring.version === "0.9")
@@ -330,7 +322,6 @@ exports.handler = async (event) => {
 							console.log("going to look for ourAddresses=" + JSON.stringify(ourAddresses));
 							var keepLoopingResultArray = true;
 							var keepLoopingTransactions = true;
-							var keepLoopingOurAddresses = true;
 							var blocksSearchedString = "Searched blocks ";
 							while (i < resultArray.length && keepLoopingResultArray === true) {
 								blocksSearchedString = blocksSearchedString + resultArray[i].number + " ";
@@ -345,54 +336,109 @@ exports.handler = async (event) => {
 										keepLoopingResultArray = false;
 										keepLoopingTransactions = false;
 									}
-									// wyvern atomic match hash = 0xab834bab
-									else if (openseaAddresses.includes(resultArray[i].transactions[t].to) && resultArray[i].transactions[t].input.startsWith("0xab834bab")) {
-										//console.log("* Found OpenSea atomic_match tx in block " + resultArray[i].number + " from " + resultArray[i].transactions[t].from + " to " + resultArray[i].transactions[t].to + " tx hash:" + resultArray[i].transactions[t].hash);
-										if (resultArray[i].transactions[t].input.length < 3666) {
-											console.log("    tx input data length was only " + resultArray[i].transactions[t].input.length + ". Can't get targetAddress");
-										}
-										else {
-											targetContract = "0x" + resultArray[i].transactions[t].input.substring(3626, 3666);
-											//console.log("    target contract addr:" + targetContract);
-											var oA = 0;
-											keepLoopingOurAddresses = true;
-											while (oA < ourAddresses.length && keepLoopingOurAddresses === true) {
-												if (ourAddresses[oA].toLowerCase() === targetContract) {
-													console.log("FOUND OPENSEA atomic_match TX FOR OUR CONTRACT!");
-													console.log("    tx:" + JSON.stringify(resultArray[i].transactions[t]));
-													numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
-													console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
-													keepLoopingOurAddresses = false; // break this loop
-													keepLoopingResultArray = false;
-													keepLoopingTransactions = false;
+									else if (openseaAddresses.includes(resultArray[i].transactions[t].to))  // this is some sort of opensea tx
+									{
+										if (resultArray[i].transactions[t].to === "0x00000000006c3852cbEf3e08E8dF289169EdE581") // seaport 1.1
+										{
+											var doWeCareCounter = 0;
+											var weCare = false;
+											while (doWeCareCounter < ourAddresses.length && weCare === false) {
+												if (resultArray[i].transactions[t].input.includes(ourAddresses[doWeCareCounter].substring(2).toLowerCase())) // remove 0x
+												{
+													console.log("found lowercase match for " + ourAddresses[doWeCareCounter].substring(2).toLowerCase());
+													weCare = true;
 												}
-												oA++;
+												doWeCareCounter++;
+											}
+
+											if (weCare) {
+												if (resultArray[i].transactions[t].input.startsWith("0xe7acab24"))  // fulfillAdvancedOrder
+												{
+													console.log("* In block=" + resultArray[i].number + ", found OpenSea Seaport 0xe7acab24 (fulfillAdvancedOrder) tx in block " + resultArray[i].number + " from " + resultArray[i].transactions[t].from + " to " + resultArray[i].transactions[t].to + " tx hash:" + resultArray[i].transactions[t].hash);
+													if (resultArray[i].transactions[t].input.length < 3666) // 
+													{
+														console.log("    Expected Seaport 0xe7acab24 tx input data length >= 3666. Length was only " + resultArray[i].transactions[t].input.length + ". Can't get targetAddress");
+														
+														var params = {
+															Message: 'stateDaemon: Unexpected Seaport tx input length for fulfillAdvancedOrder 0xe7acab24 for v' + event.params.querystring.version + ' txHash=' + resultArray[i].transactions[t].hash,
+															TopicArn: 'stateDaemon_unexpected_Seaport_tx_length'
+														};
+
+														var publishTextPromise = sns.publish(params).promise();
+
+														publishTextPromise.then(
+															function(data) {
+																console.log(`Message ${params.Message} sent to the topic ${params.TopicArn}`);
+																console.log("MessageID is " + data.MessageId);
+															}).catch(
+																function(err) {
+																	console.error(err, err.stack);
+																});
+													}
+													else // 
+													{
+														numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
+														console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
+														keepLoopingResultArray = false;
+														keepLoopingTransactions = false;
+													}
+												}
+												else if (resultArray[i].transactions[t].input.startsWith("0xfb0f3ee1"))  // fulfillBasicOrder
+												{
+													if (resultArray[i].transactions[t].input.length < 1690) // 
+													{
+														console.log("    Expected Seaport 0xfb0f3ee1 tx input data length >= 1690. Length was only " + resultArray[i].transactions[t].input.length + ". Can't get info.");
+														var params = {
+															Message: 'stateDaemon: Unexpected Seaport tx input length for fulfillBasicOrder 0xfb0f3ee1 for v' + event.params.querystring.version + ' txHash=' + resultArray[i].transactions[t].hash,
+															TopicArn: 'stateDaemon_unexpected_Seaport_tx_length'
+														};
+
+														var publishTextPromise = sns.publish(params).promise();
+
+														publishTextPromise.then(
+															function(data) {
+																console.log(`Message ${params.Message} sent to the topic ${params.TopicArn}`);
+																console.log("MessageID is " + data.MessageId);
+															}).catch(
+																function(err) {
+																	console.error(err, err.stack);
+																});
+													}
+													else // 
+													{
+														numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
+														console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
+														keepLoopingResultArray = false;
+														keepLoopingTransactions = false;
+													}
+												}
+												else // 
+												{
+													console.log("> Found a tx to Seaport 1.1 that we care about, but the function hash was unknown " + resultArray[i].transactions[t].input.substring(0, 10) + " txHash=" + resultArray[i].transactions[t].hash);
+
+													var params = {
+														Message: 'stateDaemon found relevent Seaport 1.1 tx for v' + event.params.querystring.version + ' with unknown function hash ' + resultArray[i].transactions[t].input.substring(0, 10) + " txHash=" + resultArray[i].transactions[t].hash,
+														TopicArn: 'arn:aws:sns:us-east-1:" + AWS_ACCOUNT_ID + ":stateDaemon_unknown_Seaport_tx_function'
+													};
+													
+													var publishTextPromise = sns.publish(params).promise();
+
+													publishTextPromise.then(
+														function(data) {
+															console.log(`Message ${params.Message} sent to the topic ${params.TopicArn}`);
+															console.log("MessageID is " + data.MessageId);
+														}).catch(
+															function(err) {
+																console.error(err, err.stack);
+															});
+												}
+											}
+											else {
+												//console.log("** In block=" + resultArray[i].number + ",txIndex=" + t + " we found a Seaport 1.1 tx, but the input data doesn't include \"ourAddresses\" we care about. txHash=" + resultArray[i].transactions[t].hash);
 											}
 										}
-									}
-									// seaport fulfillAdvancedOrder 0xe7acab24
-									else if (openseaAddresses.includes(resultArray[i].transactions[t].to) && resultArray[i].transactions[t].input.startsWith("0xe7acab24")) {
-										//console.log("* Found OpenSea atomic_match tx in block " + resultArray[i].number + " from " + resultArray[i].transactions[t].from + " to " + resultArray[i].transactions[t].to + " tx hash:" + resultArray[i].transactions[t].hash);
-										if (resultArray[i].transactions[t].input.length < 3666) {
-											console.log("    tx input data length was only " + resultArray[i].transactions[t].input.length + ". Can't get targetAddress");
-										}
 										else {
-											targetContract = "0x" + resultArray[i].transactions[t].input.substring(1826, 1866);
-											//console.log("    target contract addr:" + targetContract);
-											var oA = 0;
-											keepLoopingOurAddresses = true;
-											while (oA < ourAddresses.length && keepLoopingOurAddresses === true) {
-												if (ourAddresses[oA].toLowerCase() === targetContract) {
-													console.log("FOUND OPENSEA atomic_match TX FOR OUR CONTRACT!");
-													console.log("    tx:" + JSON.stringify(resultArray[i].transactions[t]));
-													numberOfFirstRelevantBlock = resultArray[i].number * 1; // FOUND ONE
-													console.log("    numberOfFirstRelevantBlock=" + numberOfFirstRelevantBlock + " ***");
-													keepLoopingOurAddresses = false; // break this loop
-													keepLoopingResultArray = false;
-													keepLoopingTransactions = false;
-												}
-												oA++;
-											}
+											console.log("** In block=" + resultArray[i].number + ",txIndex=" + t + " we found an OpenSea tx but not to Seaport 1.1. (prob wyvern which we're now ignoring) txHash=" + resultArray[i].transactions[t].hash);
 										}
 									}
 									// If a 721 tile is in a multisig and being transferred to another account, the "to" is neither the wrapper contract nor OpenSea (which we check for above)
@@ -454,7 +500,7 @@ exports.handler = async (event) => {
 							{
 								console.log("found tx to relevant address. Generating map state...");
 								lambda.invoke({
-									FunctionName: "arn:aws:lambda:us-east-1:540151370381:function:etheria_getMapState",
+									FunctionName: "arn:aws:lambda:us-east-1:" + AWS_ACCOUNT_ID + ":function:etheria_getMapState",
 									//InvocationType: "Event", // force asynchronicity
 									Payload: JSON.stringify({
 										"body-json": {},
@@ -571,7 +617,7 @@ exports.handler = async (event) => {
 																'blockNumberAndAttribute': paddedBlockNumber + "-" + eventStrings[x].attribute,
 																'blockNumber': eventStrings[x].blockNumber,
 																'timestamp': eventStrings[x].timestamp,
-																'dateISO': eventStrings[x].dateISO, 
+																'dateISO': eventStrings[x].dateISO,
 																'attribute': eventStrings[x].attribute,
 																'before': eventStrings[x].before,
 																'after': eventStrings[x].after
@@ -624,7 +670,7 @@ exports.handler = async (event) => {
 																	console.log("oldMapEnvelope and newMapEnvelope nameRaws were different and it had build data parenthetical");
 																	// spin off newBuildUsher // FIXME? this might need to be synchronous, otherwise multiple builds in the same block could be racing
 																	var buildUsherParams = {
-																		FunctionName: "arn:aws:lambda:us-east-1:540151370381:function:etheria_newBuildUsher",
+																		FunctionName: "arn:aws:lambda:us-east-1:" + AWS_ACCOUNT_ID + ":function:etheria_newBuildUsher",
 																		InvocationType: "Event", // force asynchronicity
 																		Payload: JSON.stringify({
 																			"body-json": {},
@@ -657,11 +703,11 @@ exports.handler = async (event) => {
 																{
 																	console.log("nameRaw changed but name didn't");
 																	msgPromises.push(axios.post(webhookUrl, {
-																		content: 	"Tile " + i + " build data change\n" +
-																					"block: " + newMapEnvelope.blockNumber + "\n" +
-																					"old: \"" + tiles[i].name + "\"\n" + 
-																					"new: \"" + newMapEnvelope.tiles[i].name + "\"\n" + 
-																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																		content: "Tile " + i + " build data change\n" +
+																			"block: " + newMapEnvelope.blockNumber + "\n" +
+																			"old: \"" + tiles[i].name + "\"\n" +
+																			"new: \"" + newMapEnvelope.tiles[i].name + "\"\n" +
+																			"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																	}));
 																}
 																else // nameRaw has changed AND name has changed
@@ -669,11 +715,11 @@ exports.handler = async (event) => {
 																	console.log("nameRaw and name changed");
 																	console.log("webhookUrl=" + webhookUrl);
 																	msgPromises.push(axios.post(webhookUrl, {
-																		content: 	"Tile " + i + " name change\n" + 
-																					"block: " + newMapEnvelope.blockNumber + "\n" +
-																					"old: \"" + tiles[i].name + "\"\n" + 
-																					"new: \"" + newMapEnvelope.tiles[i].name + "\"\n" + 
-																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																		content: "Tile " + i + " name change\n" +
+																			"block: " + newMapEnvelope.blockNumber + "\n" +
+																			"old: \"" + tiles[i].name + "\"\n" +
+																			"new: \"" + newMapEnvelope.tiles[i].name + "\"\n" +
+																			"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																	}));
 																}
 																console.log("leaving 'Something in the name field changed' block to execute msgPromises");
@@ -683,11 +729,11 @@ exports.handler = async (event) => {
 																console.log("owner changed for tile " + i);
 																console.log("owner old=" + tiles[i].owner + " and owner new=" + newMapEnvelope.tiles[i].owner);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: 		"Tile " + i + " owner change\n" + 
-																					"block: " + newMapEnvelope.blockNumber + "\n" +
-																					"old: \"" + tiles[i].owner + "\"\n" + 
-																					"new: \"" + newMapEnvelope.tiles[i].owner + "\"\n" + 
-																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: "Tile " + i + " owner change\n" +
+																		"block: " + newMapEnvelope.blockNumber + "\n" +
+																		"old: \"" + tiles[i].owner + "\"\n" +
+																		"new: \"" + newMapEnvelope.tiles[i].owner + "\"\n" +
+																		"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 
@@ -695,11 +741,11 @@ exports.handler = async (event) => {
 																console.log("ownerOf changed for tile " + i);
 																console.log("ownerOf old=" + tiles[i].ownerOf + " and ownerOf new=" + newMapEnvelope.tiles[i].ownerOf);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: 		"Tile " + i + " 721-owner change\n" + 
-																					"block: " + newMapEnvelope.blockNumber + "\n" +
-																					"old: \"" + tiles[i].ownerOf + "\"\n" + 
-																					"new: \"" + newMapEnvelope.tiles[i].ownerOf + "\"\n" + 
-																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: "Tile " + i + " 721-owner change\n" +
+																		"block: " + newMapEnvelope.blockNumber + "\n" +
+																		"old: \"" + tiles[i].ownerOf + "\"\n" +
+																		"new: \"" + newMapEnvelope.tiles[i].ownerOf + "\"\n" +
+																		"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 
@@ -707,11 +753,11 @@ exports.handler = async (event) => {
 																console.log("ask changed for tile " + i);
 																console.log("ask old=" + tiles[i].ask + " and ask new=" + newMapEnvelope.tiles[i].ask);
 																msgPromises.push(axios.post(webhookUrl, {
-																	content: 		"Tile " + i + " ask change\n" + 
-																					"block: " + newMapEnvelope.blockNumber + "\n" +
-																					"old: " + web3.utils.fromWei(tiles[i].ask, "ether") + " ETH\n" + 
-																					"new: " + web3.utils.fromWei(newMapEnvelope.tiles[i].ask, "ether") + " ETH\n" + 
-																					"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
+																	content: "Tile " + i + " ask change\n" +
+																		"block: " + newMapEnvelope.blockNumber + "\n" +
+																		"old: " + web3.utils.fromWei(tiles[i].ask, "ether") + " ETH\n" +
+																		"new: " + web3.utils.fromWei(newMapEnvelope.tiles[i].ask, "ether") + " ETH\n" +
+																		"https://etheria.world/explore.html?version=" + newMapEnvelope.version + "&tile=" + i
 																}));
 															}
 														}

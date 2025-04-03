@@ -1,0 +1,1 @@
+4/3/2025 - etheria_stateDaemon is a per-map script run periodically by EventBridge to generate a JSON state of the map and store it in S3, to be used by explore.html
